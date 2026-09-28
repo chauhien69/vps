@@ -903,7 +903,7 @@ cmd_config() {
 #  Quan ly website
 # ===================================================================
 show_credentials() {
-  say "Thong tin dang nhap SFTP cho: $1\n\n  Giao thuc : SFTP (KHONG phai FTP)\n  Host      : $(primary_ip)\n  Port      : $(ssh_ports | head -1)\n  User      : $2\n  Pass      : $3\n\nUpload file vao thu muc: public_html\n\nMAT KHAU CHI HIEN 1 LAN - hay luu vao trinh quan ly mat khau.\nQuen thi dung 'Doi mat khau SFTP' de tao mat khau moi." 20
+  say "Thong tin dang nhap SFTP cho: $1\n\n  Giao thuc : SFTP (KHONG phai FTP)\n  Host      : $(primary_ip)\n  Port      : $(ssh_ports | awk 'NR==1')\n  User      : $2\n  Pass      : $3\n\nUpload file vao thu muc: public_html\n\nMAT KHAU CHI HIEN 1 LAN - hay luu vao trinh quan ly mat khau.\nQuen thi dung 'Doi mat khau SFTP' de tao mat khau moi." 20
 }
 
 # Trang thai giao dich tao website (de hoan tac chinh xac nhung gi da tao)
@@ -1083,7 +1083,7 @@ cmd_status() {
   for svc in nginx ssh fail2ban; do
     s=$(systemctl is-active "$svc" 2>/dev/null); out+="$(printf '  %-18s %s' "$svc" "${s:-?}")\n"
   done
-  out+="$(printf '  %-18s %s' ufw "$(ufw status 2>/dev/null | head -1 | awk '{print $2}')")\n"
+  out+="$(printf '  %-18s %s' ufw "$(ufw status 2>/dev/null | awk 'NR==1{print $2}')")\n"
   banned=$(fail2ban-client status sshd 2>/dev/null | awk -F: '/Currently banned/{gsub(/[ \t]/,"",$2);print $2}')
   case "$(sshd -T -C user=root,host=localhost,addr=127.0.0.1 2>/dev/null | awk '/^permitrootlogin /{print $2}')" in
     without-password|prohibit-password) rootpw="chi SSH key" ;;
@@ -1315,7 +1315,8 @@ done
 # Neu co repo ngoai cung cap nginx (vd nginx.org) voi phien ban cao hon, apt se cai ban do -> tu choi
 NGX_CAND=$(apt-cache policy nginx 2>/dev/null | awk '/Candidate:/{print $2}')
 [[ -n "$NGX_CAND" && "$NGX_CAND" != "(none)" ]] || die "Khong tim thay goi nginx trong kho cua $ID"
-NGX_CAND_MAINT=$(apt-cache show "nginx=$NGX_CAND" 2>/dev/null | awk -F': ' '/^Maintainer:/{print $2; exit}')
+# awk doc HET du lieu (khong 'exit' som) -> apt-cache khong bi SIGPIPE duoi pipefail
+NGX_CAND_MAINT=$(apt-cache show "nginx=$NGX_CAND" 2>/dev/null | awk -F': ' '/^Maintainer:/ && !f {print $2; f=1}')
 if ! distro_maintainer "$NGX_CAND_MAINT"; then
   die "apt se cai Nginx $NGX_CAND tu nguon ngoai ($NGX_CAND_MAINT) thay vi ban cua $ID.
     May dang co repo Nginx cua ben thu ba. Hay cai lai he dieu hanh ban sach. Khong co gi bi thay doi."
